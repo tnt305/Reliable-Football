@@ -2,7 +2,7 @@
 
 [English](README.md) | **Tiếng Việt**
 
-> **Space-Time Attention Transformer & Dynamic RL Ensemble for SoccerNet Action Spotting**  
+> **Space-Time Attention Transformer & KnowledgeBank for SoccerNet Action Spotting**  
 > Hệ thống phát hiện sự kiện trận đấu bóng đá (Action Spotting) đa phương thức (Audio-Visual) đạt độ chính xác cao trên chuẩn dữ liệu **SoccerNet v2 (17 Classes)**.
 
 ---
