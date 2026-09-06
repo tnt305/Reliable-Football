@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyTorch checkpoints / model weights
+*.pt
+*.pth
+*.ckpt
+models
+models/
+
+# Datasets and cache
+downloads/dataset
+downloads/sample_test_download/
+dataset/
+soccernet_dataloader
+soccernet_dataloader/
+
+# Media & Archives
+*.mkv
+*.mp4
+*.mp3
+*.wav
+*.tar
+*.zip
+*.gz
+*.conda
+
+# Numpy files (except class embeddings)
+*.npy
+!class_embed.npy
+!**/class_embed.npy
+
+# Results and logs
+*.pkl
+*results_spotting*
+*.log
+git_status.txt
+.DS_Store
+.vscode/
+.idea/
+.venv/

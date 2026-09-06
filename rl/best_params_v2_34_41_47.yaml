@@ -1,0 +1,86 @@
+classes:
+- id: 0
+  name: Penalty
+  window: 3
+  threshold: 0.005
+  decay: gaussian
+- id: 1
+  name: Kick-off
+  window: 2
+  threshold: 0.005
+  decay: gaussian
+- id: 2
+  name: Goal
+  window: 2
+  threshold: 0.005
+  decay: gaussian
+- id: 3
+  name: Substitution
+  window: 2
+  threshold: 0.005
+  decay: gaussian
+- id: 4
+  name: Offside
+  window: 3
+  threshold: 0.005
+  decay: pow2
+- id: 5
+  name: Shots on target
+  window: 3
+  threshold: 0.005
+  decay: gaussian
+- id: 6
+  name: Shots off target
+  window: 3
+  threshold: 0.005
+  decay: gaussian
+- id: 7
+  name: Clearance
+  window: 2
+  threshold: 0.005
+  decay: gaussian
+- id: 8
+  name: Ball out of play
+  window: 3
+  threshold: 0.005
+  decay: pow2
+- id: 9
+  name: Throw-in
+  window: 3
+  threshold: 0.005
+  decay: gaussian
+- id: 10
+  name: Foul
+  window: 2
+  threshold: 0.005
+  decay: gaussian
+- id: 11
+  name: Indirect free-kick
+  window: 3
+  threshold: 0.005
+  decay: gaussian
+- id: 12
+  name: Direct free-kick
+  window: 4
+  threshold: 0.005
+  decay: gaussian
+- id: 13
+  name: Corner
+  window: 2
+  threshold: 0.005
+  decay: gaussian
+- id: 14
+  name: Yellow card
+  window: 2
+  threshold: 0.005
+  decay: gaussian
+- id: 15
+  name: Red card
+  window: 2
+  threshold: 0.005
+  decay: gaussian
+- id: 16
+  name: Yellow->red card
+  window: 4
+  threshold: 0.005
+  decay: pow2

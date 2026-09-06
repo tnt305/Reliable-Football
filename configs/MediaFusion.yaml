@@ -1,0 +1,101 @@
+# ==============================================================================
+# MediaFusion Configuration
+# Architecture: Space-Time Attention Transformer with Audio-Visual Fusion
+# Dataset: SoccerNet v2 (17 Action Spotting Classes)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Dataset & Chunking Parameters
+# ------------------------------------------------------------------------------
+dataset_name: "soccernet"
+train_split:
+  - "train"
+val_split:
+  - "valid"
+test_split:
+  - "test"
+
+chunk_size: 50           # Số giây trong một chunk đầu vào
+outputrate: 2            # Số frame output trên mỗi giây (chunk 50s -> 100 predictions)
+rC: 2                    # Bán kính frame cho nhãn classification (positive window)
+rD: 3                    # Bán kính frame cho nhãn displacement
+
+# ------------------------------------------------------------------------------
+# 2. Input Modalities
+# ------------------------------------------------------------------------------
+audio: true              # Kích hoạt nhánh audio (Log-Mel Spectrogram + VGGish)
+baidu: true              # Kích hoạt nhánh visual (6 streams Baidu embeddings)
+
+# ------------------------------------------------------------------------------
+# 3. Data Storage & Paths
+# ------------------------------------------------------------------------------
+path_labels: "downloads/dataset/"
+path_baidu: "downloads/dataset/"
+path_audio: "downloads/dataset/"
+path_store: "soccernet_dataloader"
+path_experiments: "models"
+
+store: true              # Lưu cache dataloader để tăng tốc độ nạp dữ liệu
+max_games: 600           # Giới hạn số game nạp tối đa (600 = full dataset)
+
+# ------------------------------------------------------------------------------
+# 4. Model Architecture & Hyperparameters
+# ------------------------------------------------------------------------------
+model:
+  name: "MediaFusion"
+  queries: "class_embed.npy"
+
+  # Feature Augmentation & Mixup
+  feature_augmentation: true
+  mixup: true
+  mixup_nqueue: 2
+  mixup_balanced: true
+  mixup_alpha: 1.0
+  mixup_beta: 0.6
+  temporal_drop_p: 0.5
+  random_switch_p: 0.3
+
+  # Transformer Dimensions & Backbone
+  dim: 512
+  dropout: 0.4
+  TE_layers: 8           # Số layer của Transformer Encoder (Space-Time Attention)
+  TE_hierarchical: true  # Attention phân cấp giữa thời gian và modality
+  TD_layers: 4           # Số layer của Transformer Decoder
+  num_classes: 17        # 17 class hành động của SoccerNet v2
+
+  # Uncertainty Head (Gaussian NLL / Log-Likelihood)
+  uncertainty: true
+  uncertainty_mode: "loglikelihood"
+
+# ------------------------------------------------------------------------------
+# 5. Loss Function Weights
+# ------------------------------------------------------------------------------
+wC: 100                  # Trọng số loss phân loại (Classification Loss)
+wD: 1                    # Trọng số loss dịch chuyển (Displacement Loss)
+focal: true              # Sử dụng Focal Loss cho phân loại
+gamma: 1                 # Tham số gamma của Focal Loss
+
+# ------------------------------------------------------------------------------
+# 6. Training & Optimization
+# ------------------------------------------------------------------------------
+LR: 0.00005              # Base Learning Rate (tự động scale theo batch size)
+BS: 16                   # Batch Size
+max_epochs: 53           # Tổng số epoch huấn luyện
+warmup_iter: 3           # Số epoch warmup LR
+patience: 10             # Early stopping patience
+num_workers: 16          # Số luồng DataLoader
+seed: 1                  # Random seed tái lập kết quả
+
+# ------------------------------------------------------------------------------
+# 7. Evaluation & Post-Processing (Inference)
+# ------------------------------------------------------------------------------
+test_only: false         # True: chỉ chạy đánh giá; False: huấn luyện + đánh giá
+NMS_window: 8            # Kích thước cửa sổ Soft-NMS (giây)
+NMS_threshold: 0.01      # Ngưỡng lọc phát hiện sau NMS
+postprocessing: "SNMS"   # Thuật toán hậu xử lý: SNMS (Soft Non-Maximum Suppression)
+test_stride: 8           # Bước nhảy (stride) khi trượt cửa sổ trong lúc test
+
+# ------------------------------------------------------------------------------
+# 8. Hardware
+# ------------------------------------------------------------------------------
+gpu: 0

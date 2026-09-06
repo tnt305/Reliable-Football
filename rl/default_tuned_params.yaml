@@ -1,0 +1,72 @@
+# Cấu hình chuẩn tối ưu Per-Class Post-Processing (NMS Window & Threshold)
+# Đã điều chỉnh cho bài toán SoccerNet Action Spotting (kết hợp RL Ensemble 17, 24, 25)
+
+classes:
+  - id: 0
+    name: Penalty
+    window: 5
+    threshold: 0.005
+  - id: 1
+    name: Kick-off
+    window: 7
+    threshold: 0.010
+  - id: 2
+    name: Goal
+    window: 9
+    threshold: 0.015
+  - id: 3
+    name: Substitution
+    window: 12
+    threshold: 0.010
+  - id: 4
+    name: Offside
+    window: 10
+    threshold: 0.010
+  - id: 5
+    name: Shots on target
+    window: 14
+    threshold: 0.020
+  - id: 6
+    name: Shots off target
+    window: 14
+    threshold: 0.020
+  - id: 7
+    name: Clearance
+    window: 5
+    threshold: 0.010
+  - id: 8
+    name: Ball out of play
+    window: 8
+    threshold: 0.020
+  - id: 9
+    name: Throw-in
+    window: 8
+    threshold: 0.020
+  - id: 10
+    name: Foul
+    window: 8
+    threshold: 0.020
+  - id: 11
+    name: Indirect free-kick
+    window: 8
+    threshold: 0.010
+  - id: 12
+    name: Direct free-kick
+    window: 13
+    threshold: 0.010
+  - id: 13
+    name: Corner
+    window: 5
+    threshold: 0.010
+  - id: 14
+    name: Yellow card
+    window: 6
+    threshold: 0.015
+  - id: 15
+    name: Red card
+    window: 6
+    threshold: 0.001
+  - id: 16
+    name: Yellow->red card
+    window: 6
+    threshold: 0.001
