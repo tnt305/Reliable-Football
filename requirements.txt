@@ -1,0 +1,22 @@
+librosa==0.10.2.post1
+loguru==0.7.2
+matplotlib==3.9.2
+numpy==2.1.3
+opencv_python==4.10.0.84
+# pandas==2.2.3
+Pillow==11.0.0
+pydantic==2.9.2
+scikit_learn==1.5.2
+SoccerNet==0.1.61
+# torch==2.8.0
+tqdm==4.66.5
+transformers==4.57.3
+accelerate==0.29.0
+aiohttp>=3.9.0
+pandas
+resampy==0.4.3
+scipy==1.18.1
+pyyaml==6.0.3
+gymnasium==1.0.0
+stable_baselines3==2.5.0
+tensorboard==2.21.0
