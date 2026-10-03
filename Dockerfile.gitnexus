@@ -1,0 +1,24 @@
+# GitNexus CLI image — reproduces the local `gitnexus-slim` image
+# Build:  docker build -f Dockerfile.gitnexus -t gitnexus-slim .
+# Usage:  docker run --rm -it -v "$PWD:/workspace" gitnexus-slim analyze
+FROM node:24-bookworm-slim
+
+# git + openssh-client: repo operations (analyze requires a git repo)
+# ca-certificates: TLS for npm/registry and remote fetches
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        openssh-client \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Native modules (tree-sitter, @ladybugdb/core) install from prebuilt
+# binaries, so no Python/build-essential toolchain is needed.
+RUN npm install -g gitnexus@1.6.12 \
+    && npm cache clean --force
+
+# Mount the repo to index at /workspace:
+#   -v /path/to/repo:/workspace
+WORKDIR /workspace
+
+ENTRYPOINT ["gitnexus"]
+CMD ["--help"]
