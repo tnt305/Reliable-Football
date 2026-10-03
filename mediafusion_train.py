@@ -3,6 +3,7 @@ import os
 import time
 from tqdm import tqdm
 import torch
+import torch.nn as nn
 import numpy as np
 from sklearn.metrics import average_precision_score
 from SoccerNet.Evaluation.utils import AverageMeter, INVERSE_EVENT_DICTIONARY_V2
@@ -802,3 +803,126 @@ class LearningRateWarmUP(object):
     
     def load_state_dict(self, state_dict):
         self.after_scheduler.load_state_dict(state_dict)
+
+
+class LogLikelihoodLoss(torch.nn.Module):
+    """
+    Class to compute the loglikelihood loss (displacement loss uncertaint-aware)
+    """
+    def __init__(self, alpha = 0.6, beta = 0.4):
+        super(LogLikelihoodLoss, self).__init__()
+        self.alpha = alpha
+        self.beta = 1 - alpha
+
+    def forward(self, labelsD, predictionsD):
+        '''
+        labelsD: b x 18
+        predictionsD: b x 2 (with mean in 0 and logvar in 1)
+        '''
+
+        rec_loss = self.alpha * (labelsD - predictionsD[:, 0])**2 / (predictionsD[:, 1].exp())
+        sup_loss = self.beta * predictionsD[:, 1]
+        return rec_loss+sup_loss
+
+class MediaFusionLoss(torch.nn.Module):
+    """
+    Class to compute the MediaFusion loss (classification + displacement)
+    """
+    def __init__(self, wC = 1, wD = 1, focal = False, nw = 7, uncertainty = False, uncertainty_mode = 'mse', gamma = 1):
+        super(MediaFusionLoss, self).__init__()
+
+        self.wC = wC
+        self.wD = wD
+        self.maxpool = nn.MaxPool2d((nw, 1), stride = (1, 1), padding = (nw//2, 0))
+        self.uncertainty = uncertainty
+        self.uncertainty_mode = uncertainty_mode
+        if self.uncertainty & (self.uncertainty_mode == 'loglikelihood'):
+            self.loglikelihood = LogLikelihoodLoss(alpha = 0.3)
+        self.focal = focal
+        self.gamma = gamma
+    def forward(self, labels, predictions, labelsD = None, predictionsD = None):
+
+        b, nf, nc = labels.shape #b x cs*fr+1 x 18
+
+        #Classification loss
+        if self.focal:
+            lossC = - torch.log(predictions + 7e-05) * labels * (labels - predictions).abs()**self.gamma - torch.log(1 - predictions + 7e-05) * (1 - labels) * (labels - predictions).abs()**self.gamma
+        else:
+            lossC = - torch.log(predictions + 7e-05) * labels - torch.log(1 - predictions + 7e-05) * (1 - labels)
+        lossC = lossC.mean() * self.wC
+
+        #Displacement loss
+        if len(labelsD[labelsD != 1000]) == 0:
+            lossD = torch.tensor(0, device = 'cuda')
+        else:
+            labels_aux = self.maxpool(labels) #auxiliar labels to weight displacement loss by the probability of the class
+            if self.uncertainty & (self.uncertainty_mode == 'loglikelihood'):
+                lossD = (self.loglikelihood(labelsD[labelsD != 1000], predictionsD[labelsD != 1000]) * labels_aux[labelsD != 1000]).sum() / (b * nf)
+            else:
+                lossD = ((labelsD[labelsD != 1000] - predictionsD[labelsD != 1000]).pow(2) * labels_aux[labelsD != 1000]).sum() / (b * nf)
+            lossD = lossD * self.wD
+
+        return lossC, lossD
+
+
+class MediaFusionLoss_v2(torch.nn.Module):
+    def __init__(self, wC = 1, wD = 1, focal = False, nw = 7, uncertainty = False, uncertainty_mode = 'mse', gamma = 1):
+        super(MediaFusionLoss_v2, self).__init__()
+
+        self.wC = wC
+        self.wD = wD
+        self.maxpool = nn.MaxPool2d((nw, 1), stride = (1, 1), padding = (nw//2, 0))
+        self.uncertainty = uncertainty
+        self.uncertainty_mode = uncertainty_mode
+        if self.uncertainty and (self.uncertainty_mode == 'loglikelihood'):
+            self.loglikelihood = LogLikelihoodLoss(alpha = 0.3)
+        self.focal = focal
+        self.gamma = gamma
+
+    def forward(self, labels, predictions, labelsD=None, predictionsD=None):
+        b, nf, nc = labels.shape
+
+        # Classification loss (giữ nguyên)
+        if self.focal:
+            lossC = - torch.log(predictions + 7e-05) * labels * (labels - predictions).abs()**self.gamma - torch.log(1 - predictions + 7e-05) * (1 - labels) * (labels - predictions).abs()**self.gamma
+        else:
+            lossC = - torch.log(predictions + 7e-05) * labels - torch.log(1 - predictions + 7e-05) * (1 - labels)
+        lossC = lossC.mean() * self.wC
+
+        # Displacement loss
+        # Tạo mask cho các vị trí có nhãn hợp lệ
+        valid_mask = (labelsD != 1000)
+
+        if not valid_mask.any(): # Nếu không có nhãn hợp lệ nào
+            lossD = torch.tensor(0.0, device=labels.device)
+        else:
+            labels_aux = self.maxpool(labels)
+
+            # Lấy ra các giá trị tại vị trí hợp lệ
+            valid_labelsD = labelsD[valid_mask]
+            valid_labels_aux = labels_aux[valid_mask]
+
+            if self.uncertainty and (self.uncertainty_mode == 'loglikelihood'):
+                # Lọc predictionsD bằng cùng mask, nó sẽ giữ nguyên chiều cuối cùng
+                valid_predictionsD = predictionsD[valid_mask] # Shape: [N, 2]
+
+                # Đây là logic tính toán chính xác
+                mean_pred = valid_predictionsD[:, 0]
+                log_var_pred = valid_predictionsD[:, 1]
+                # Công thức loss cho Gaussian Log-Likelihood
+                likelihood_loss = 0.5 * (torch.exp(-log_var_pred) * (valid_labelsD - mean_pred).pow(2) + log_var_pred)
+
+                lossD = (likelihood_loss * valid_labels_aux).sum() / (b * nf)
+            else:
+                # Xử lý cho trường hợp không có uncertainty hoặc uncertainty_mode='mse'
+                valid_predictionsD = predictionsD[valid_mask]
+
+                # Nếu có uncertainty nhưng dùng mse, chỉ lấy mean
+                if self.uncertainty:
+                    valid_predictionsD = valid_predictionsD[:, 0]
+
+                lossD = ((valid_labelsD - valid_predictionsD).pow(2) * valid_labels_aux).sum() / (b * nf)
+
+            lossD = lossD * self.wD
+
+        return lossC, lossD
