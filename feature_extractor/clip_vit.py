@@ -126,17 +126,24 @@ class FastCLIPExtractor:
         self,
         model_name: str = "ViFortune-AI/CLIP-ViT",
         batch_size: int = 512,
+        use_projection: bool = False,
     ):
         self.batch_size = batch_size
-        print(f"🔄 Đang tải mô hình CLIP: '{model_name}'...")
-
         self.model = CLIPModel.from_pretrained(
             model_name,
             dtype=torch.float16,
         ).to(DEVICE)
         self.model.eval()
 
-        self.embed_dim = self.model.config.vision_config.hidden_size  # 768
+        hidden_size = self.model.config.vision_config.hidden_size
+        # Tự động bật get_image_features nếu dùng ViT-L/14 (hidden_size != 768) hoặc yêu cầu use_projection=True
+        self.use_projection = use_projection or (hidden_size != 768)
+        self.embed_dim = (
+            self.model.config.projection_dim
+            if self.use_projection
+            else hidden_size
+        )
+        print(f"🔄 Đã tải CLIP: '{model_name}' (use_projection={self.use_projection}, dim={self.embed_dim})")
         gpu_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
         gpu_mem = (
             torch.cuda.get_device_properties(0).total_memory / (1024**3)
@@ -172,10 +179,16 @@ class FastCLIPExtractor:
 
             # Chạy qua Vision Transformer lấy [CLS] pooler_output (768D)
             with autocast(device_type="cuda", dtype=torch.float16):
-                vision_outputs = self.model.vision_model(
-                    pixel_values=batch_tensor
-                )
-                features = vision_outputs.pooler_output
+                if self.use_projection:
+                    features = self.model.get_image_features(pixel_values=batch_tensor)
+                    if not isinstance(features, torch.Tensor):
+                        features = features.pooler_output
+                    features = torch.nn.functional.normalize(features.float(), p=2, dim=-1)
+                else:
+                    vision_outputs = self.model.vision_model(
+                        pixel_values=batch_tensor
+                    )
+                    features = vision_outputs.pooler_output
 
             all_features.append(features.float().cpu().numpy())
 

@@ -168,7 +168,7 @@ def trainAS(dataloader,
 
     end = time.time()
 
-    use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+    use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported(including_emulation=False)
     amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
     scaler = GradScaler(enabled=not use_bf16) # for mixed precision when float16
     
