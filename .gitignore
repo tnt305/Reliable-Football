@@ -42,3 +42,25 @@ git_status.txt
 .idea/
 .venv/
 review.md
+
+# Ignored markdown & csv reports (keep tracked READMEs)
+*.md
+!README.md
+!README_vi.md
+!**/README.md
+*.csv
+
+# Benchmark, control query init, reports, and training experiments
+benchmark_c6.py
+run_benchmark_c6_available.py
+c6_measurements/
+configs/MediaFusion_irrelevant.yaml
+configs/MediaFusion_random.yaml
+configs/MediaFusion_shuffled.yaml
+control_query_init/
+downloads/.hf_cache/
+downloads/e2e_dataset/
+extract_clip_frames_dataset.py
+impl/train/
+irrelevant.txt
+reports/
