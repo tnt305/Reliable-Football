@@ -43,10 +43,44 @@ CLIP_STD = torch.tensor(
 ).view(1, 3, 1, 1)
 
 
-def decode_video_ffmpeg(video_path: str, target_fps: int = 1) -> np.ndarray:
-    """Giải mã video bằng FFmpeg pipe trực tiếp vào RAM (kèm fallback OpenCV)."""
+def decode_video_ffmpeg(
+    video_path: str, target_fps: int = 1, use_hwaccel: bool = True
+) -> np.ndarray:
+    """Giải mã video bằng FFmpeg pipe trực tiếp vào RAM (ưu tiên GPU NVDEC -hwaccel cuda, fallback CPU + OpenCV)."""
     if shutil.which("ffmpeg"):
-        cmd = [
+        candidate_cmds = []
+        if use_hwaccel and torch.cuda.is_available():
+            # 1. Zero-copy NVDEC: lọc fps=1 ngay trên GPU surface trước khi hwdownload về RAM
+            candidate_cmds.append([
+                "ffmpeg",
+                "-hwaccel", "cuda",
+                "-hwaccel_output_format", "cuda",
+                "-an", "-sn", "-dn",
+                "-i", video_path,
+                "-vf", f"fps={target_fps},hwdownload,format=nv12,scale=-2:224,crop=224:224",
+                "-f", "image2pipe",
+                "-pix_fmt", "rgb24",
+                "-vcodec", "rawvideo",
+                "-hide_banner",
+                "-loglevel", "error",
+                "-",
+            ])
+            # 2. Fallback NVDEC chuẩn (trường hợp format không phải nv12)
+            candidate_cmds.append([
+                "ffmpeg",
+                "-hwaccel", "cuda",
+                "-an", "-sn", "-dn",
+                "-i", video_path,
+                "-vf", f"fps={target_fps},scale=-2:224,crop=224:224",
+                "-f", "image2pipe",
+                "-pix_fmt", "rgb24",
+                "-vcodec", "rawvideo",
+                "-hide_banner",
+                "-loglevel", "error",
+                "-",
+            ])
+        # 3. Fallback CPU FFmpeg
+        candidate_cmds.append([
             "ffmpeg",
             "-an", "-sn", "-dn",
             "-i", video_path,
@@ -56,22 +90,24 @@ def decode_video_ffmpeg(video_path: str, target_fps: int = 1) -> np.ndarray:
             "-vcodec", "rawvideo",
             "-hide_banner",
             "-loglevel", "error",
-            "-"
-        ]
-        try:
-            pipe = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                bufsize=10**8,
-            )
-            raw_data, _ = pipe.communicate()
-            if pipe.returncode == 0 and len(raw_data) > 0:
-                frames = np.frombuffer(raw_data, dtype=np.uint8).reshape((-1, 224, 224, 3))
-                if len(frames) > 0:
-                    return frames
-        except Exception:
-            pass
+            "-",
+        ])
+
+        for cmd in candidate_cmds:
+            try:
+                pipe = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    bufsize=10**8,
+                )
+                raw_data, _ = pipe.communicate()
+                if pipe.returncode == 0 and len(raw_data) > 0:
+                    frames = np.frombuffer(raw_data, dtype=np.uint8).reshape((-1, 224, 224, 3))
+                    if len(frames) > 0:
+                        return frames
+            except Exception:
+                continue
 
     # Fallback OpenCV cv2
     try:
@@ -127,11 +163,19 @@ class FastCLIPExtractor:
         model_name: str = "ViFortune-AI/CLIP-ViT",
         batch_size: int = 512,
         use_projection: bool = False,
+        subfolder: str | None = None,
     ):
         self.batch_size = batch_size
+        if subfolder is None and model_name == "ViFortune-AI/CLIP-ViT":
+            subfolder = "best"
+
+        load_kwargs = {"dtype": torch.float16}
+        if subfolder:
+            load_kwargs["subfolder"] = subfolder
+
         self.model = CLIPModel.from_pretrained(
             model_name,
-            dtype=torch.float16,
+            **load_kwargs,
         ).to(DEVICE)
         self.model.eval()
 
@@ -143,7 +187,8 @@ class FastCLIPExtractor:
             if self.use_projection
             else hidden_size
         )
-        print(f"🔄 Đã tải CLIP: '{model_name}' (use_projection={self.use_projection}, dim={self.embed_dim})")
+        model_label = f"{model_name}/{subfolder}" if subfolder else model_name
+        print(f"🔄 Đã tải CLIP: '{model_label}' (use_projection={self.use_projection}, dim={self.embed_dim})")
         gpu_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
         gpu_mem = (
             torch.cuda.get_device_properties(0).total_memory / (1024**3)
@@ -226,6 +271,12 @@ def main():
         help="HuggingFace model ID hoặc local path của mô hình CLIP",
     )
     parser.add_argument(
+        "--subfolder",
+        type=str,
+        default="best",
+        help="Subfolder bên trong repo HuggingFace (mặc định: 'best', truyền '' để dùng root)",
+    )
+    parser.add_argument(
         "--batch_size",
         type=int,
         default=512,
@@ -240,7 +291,9 @@ def main():
     args = parser.parse_args()
 
     extractor = FastCLIPExtractor(
-        model_name=args.model_name, batch_size=args.batch_size
+        model_name=args.model_name,
+        batch_size=args.batch_size,
+        subfolder=args.subfolder,
     )
 
     print("🔍 Đang quét danh sách video...")

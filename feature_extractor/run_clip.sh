@@ -16,6 +16,7 @@ DATASET_PATH="downloads/dataset"
 # Default values
 BATCH_SIZE=256
 NUM_WORKERS=8
+SUBFOLDER="best"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -26,6 +27,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --num_workers)
             NUM_WORKERS="$2"
+            shift 2
+            ;;
+        --subfolder)
+            SUBFOLDER="$2"
             shift 2
             ;;
         *)
@@ -47,6 +52,7 @@ fi
 echo "=================================================================="
 echo "⚡ CLIP-ViT EXTRACTOR (GPU ACCELERATED)"
 echo "   Output:      1_CLIP_ViT.npy & 2_CLIP_ViT.npy"
+echo "   Subfolder:   ${SUBFOLDER:-<root>}"
 echo "   Dataset:     $DATASET_PATH"
 echo "   Batch Size:  $BATCH_SIZE"
 echo "   Num Workers: $NUM_WORKERS"
@@ -54,6 +60,7 @@ echo "=================================================================="
 
 $PYTHON_EXEC "$SCRIPT_DIR/clip_vit.py" \
     --dataset_path "$DATASET_PATH" \
+    --subfolder "$SUBFOLDER" \
     --batch_size "$BATCH_SIZE" \
     --num_workers "$NUM_WORKERS" \
     "$@"

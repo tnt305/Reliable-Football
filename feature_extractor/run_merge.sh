@@ -9,7 +9,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATASET_PATH="downloads/dataset"
-MERGE_SCRIPT="/workspace/ActionAware/merge_features.py"
+MERGE_SCRIPT="$SCRIPT_DIR/../merge_features.py"
 
 # Parse command line arguments if any
 while [[ $# -gt 0 ]]; do
