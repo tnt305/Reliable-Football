@@ -14,8 +14,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATASET_PATH="downloads/dataset"
 
 # Default values
-BATCH_SIZE=256
-NUM_WORKERS=8
+BATCH_SIZE=128
+NUM_WORKERS=2
 SUBFOLDER="best"
 
 # Parse command line arguments
